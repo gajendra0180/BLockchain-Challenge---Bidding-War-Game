@@ -1,0 +1,29 @@
+{
+  "name": "error0180-blockchain-challenge",
+  "version": "1.0.0",
+  "description": "Welcome the Energi Blockchain Challenge.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/tech404/blockchain-challenge.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://gitlab.com/tech404/blockchain-challenge/issues"
+  },
+  "homepage": "https://gitlab.com/tech404/blockchain-challenge#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "4.8.0",
+    "@openzeppelin/contracts-upgradeable": "4.8.0",
+    "ethers": "^5.5.2",
+    "hardhat": "^2.22.1"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.3"
+  }
+}
