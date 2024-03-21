@@ -25,14 +25,13 @@ contract BiddingWar is
 
     /* ============ State Variables ============ */
 
-    uint256 constant EXTENSION = 600;
-    uint256 constant ROUNDDURATION = 3600;
-    uint256 constant COMMISSION = 500;
+    uint256 roundExtension;
+    uint256 roundDuration;
+    uint256 commissionPercent;
     uint256 constant DENOMINATOR = 10000;
 
     uint256 lastRewardedRound;
     address public admin;
-    uint256 accumulatedCommision;
 
     struct RoundStatus {
         uint256 roundId;
@@ -42,6 +41,7 @@ contract BiddingWar is
         uint256 endTime;
         uint256 totalRewards;
         uint256 commission;
+        address rewardToken;
         address previousBidder;
         address highestBidder;
     }
@@ -53,7 +53,6 @@ contract BiddingWar is
 
     event BidMade(address indexed _bidder, uint256 _amount, uint256 _timestamp);
     event RewardsDistributed(uint256 _lastRewardedRound);
-    event CommissionWithdrawn(uint256 _commission);
 
     /* ============ Errors ============ */
 
@@ -61,10 +60,6 @@ contract BiddingWar is
     error GameInactive();
     error AlreadyBid();
     error RoundInProgress();
-    error CommisionWithdrawFailed();
-    error EmergencyWithdrawFailed();
-    error RewardDistributionFailed();
-    error ZeroAccumulatedCommission();
 
     /* ============ Modifier ============ */
 
@@ -87,30 +82,41 @@ contract BiddingWar is
         _;
     }
 
-    modifier hasAccumulatedCommission(){
-        if(accumulatedCommision == 0){
-            revert ZeroAccumulatedCommission();
-        }
-        _;
-    }
-
     /* ============ Initialization ============ */
 
-    function __BiddingWar_init(address _admin) public initializer {
+    function __BiddingWar_init(
+        address _admin,
+        uint256 _commissionPercent,
+        uint256 _roundDuration,
+        uint256 _roundExtension,
+        address _rewardToken
+    ) public initializer {
         __Ownable_init();
         __ReentrancyGuard_init();
         __Pausable_init();
-        accumulatedCommision = 0;
         admin = _admin;
+        commissionPercent = _commissionPercent;
+        roundDuration = _roundDuration;
+        roundExtension = _roundExtension;
+        round = RoundStatus(
+            0,
+            false,
+            block.timestamp,
+            0,
+            0,
+            0,
+            0,
+            address(_rewardToken),
+            address(0),
+            address(0)
+        );
     }
 
     /* ============ External Read Functions ============ */
 
-    function getRoundSpecificDetails(uint256 _roundId)
-        external
-        view
-        returns (RoundStatus memory)
-    {
+    function getRoundSpecificDetails(
+        uint256 _roundId
+    ) external view returns (RoundStatus memory) {
         return roundIdToGame[_roundId];
     }
 
@@ -118,11 +124,17 @@ contract BiddingWar is
         return admin;
     }
 
-    function getAccumulatedCommission() external view returns (uint256) {
-        return accumulatedCommision;
+    function getAccumulatedCommission(
+        uint256 _roundId
+    ) external view returns (uint256) {
+        return roundIdToGame[_roundId].commission;
     }
 
-    function getCurrentRoundDetails() external view returns (RoundStatus memory) {
+    function getCurrentRoundDetails()
+        external
+        view
+        returns (RoundStatus memory)
+    {
         return round;
     }
 
@@ -134,50 +146,59 @@ contract BiddingWar is
         return round.endTime;
     }
 
-    function highestBidder(uint256 _roundId) external view returns (address) {
+    function gethighestBidder(
+        uint256 _roundId
+    ) external view returns (address) {
         return roundIdToGame[_roundId].highestBidder;
     }
 
-
     /* ============ External Write Functions ============ */
-    function bid(
-        uint256 _amount
-    ) external isRoundActive isBidTooLow(_amount) {
-        if (round.previousBidder == msg.sender) {
+    function bid(uint256 _amount) external isRoundActive isBidTooLow(_amount) {
+        address prevBidder = round.highestBidder;
+        if (prevBidder == msg.sender) {
             revert AlreadyBid();
         }
         uint256 amount = _amount;
-        uint endTime = round.endTime + EXTENSION;
-        uint256 reward = round.totalPrize + amount;
-        uint commission = round.commission + (COMMISSION * amount) / 100; // this calculation is wrong as decimal is not handled
-        accumulatedCommision += commission;
+        uint endTime = round.endTime + roundExtension;
+        uint256 reward = round.totalRewards + amount;
+        uint commission = round.commission +
+            (commissionPercent * amount) /
+            DENOMINATOR;
+        address rewardToken = round.rewardToken;
         round = RoundStatus(
+            _gameIds.current(),
             true,
             amount,
             block.timestamp,
             endTime,
             reward,
             commission,
+            rewardToken,
+            prevBidder,
             msg.sender
         );
     }
 
     /* ============ Private Functions ============ */
-    function _startRound() private {
+    function _startRound(address rewardToken) private {
         _gameIds.increment();
+        address prevBidder = round.highestBidder;
         round.roundId = _gameIds.current();
         round.isActive = true;
         uint256 amount = 0;
-        uint endTime = block.timestamp + ROUNDDURATION;
+        uint endTime = block.timestamp + roundDuration;
         uint256 reward = round.totalRewards + amount;
-        uint commission = (COMMISSION * amount) / 100;
+        uint commission = (commissionPercent * amount) / DENOMINATOR;
         round = RoundStatus(
+            _gameIds.current(),
             true,
             amount,
             block.timestamp,
             endTime,
             reward,
             commission,
+            rewardToken,
+            prevBidder,
             msg.sender
         );
         roundIdToGame[_gameIds.current()] = round;
@@ -187,30 +208,18 @@ contract BiddingWar is
         delete round;
     }
 
-    function _payRewards(
-        uint _netRewards,
-        address _highestBidder
+    function _payRewardsAndCommission(
+        uint256 _netRewards,
+        uint256 _commissionAmt,
+        address _highestBidder,
+        address rewardToken
     ) private {
-        bool success;
-        (success, ) = payable(_highestBidder).call{value: _netRewards}("");
-        if (!success) {
-            revert RewardDistributionFailed();
-        }
-    }
-
-    function __payCommission(bool _payCommission) private {
-        if (_payCommission) {
-            (bool success, ) = payable(admin).call{value: accumulatedCommision}("");
-            if (!success) {
-                revert CommisionWithdrawFailed();
-            }
-            accumulatedCommision = 0;
-            emit CommissionWithdrawn(accumulatedCommision);
-        }
+        IERC20(rewardToken).safeTransfer(_highestBidder, _netRewards);
+        IERC20(rewardToken).safeTransfer(admin, _commissionAmt);
     }
 
     /* ============ Admin Functions ============ */
-        function pauseGame() external onlyOwner {
+    function pauseGame() external onlyOwner {
         _pause();
     }
 
@@ -218,50 +227,69 @@ contract BiddingWar is
         _unpause();
     }
 
-    function startGame() external onlyOwner onlyGameInactive {
-        _startRound();
-    }
-
-    function nextRound() external onlyOwner onlyGameInactive {
-        _resetGame();
-        _startRound();
-    }
-
-    function distributeRewards(
-        bool _payCommission
+    function startGame(
+        address rewardToken
     ) external onlyOwner onlyGameInactive {
+        _startRound(rewardToken);
+    }
+
+    function nextRound(
+        address rewardToken
+    ) external onlyOwner onlyGameInactive {
+        _resetGame();
+        _startRound(rewardToken);
+    }
+
+    function distributeRewards() external onlyOwner onlyGameInactive {
         for (uint i = lastRewardedRound; i < _gameIds.current(); i++) {
-            RoundStatus memory game = roundIdToGame[i];
-            address highestBidder = game.highestBidder;
-            uint256 commissionAmt = game.commission;
-            uint256 totalRewards = game.totalRewards;
+            RoundStatus memory roundInfo = roundIdToGame[i];
+            address highestBidder = roundInfo.highestBidder;
+            uint256 commissionAmt = roundInfo.commission;
+            uint256 totalRewards = roundInfo.totalRewards;
             uint256 netRewards = totalRewards - commissionAmt;
-            roundIdToGame[i] = game;
-            _payRewards(
+            address rewardToken = roundInfo.rewardToken;
+            _payRewardsAndCommission(
                 netRewards,
+                commissionAmt,
                 highestBidder,
+                rewardToken
             );
         }
-        _payCommission(_payCommission);
         lastRewardedRound = _gameIds.current();
         emit RewardsDistributed(lastRewardedRound);
     }
 
-    function commisionWithdraw() external onlyOwner hasAccumulatedCommission {
-        (bool success, ) = payable(admin()).call{value: accumulatedCommision}("");
-        if (!success) {
-            revert CommisionWithdrawFailed();
-        }
-        accumulatedCommision = 0;
-        emit CommissionWithdrawn(round.commission);
+    function setAdmin(address _admin) external onlyOwner {
+        admin = _admin;
+    }
+
+    function setCommissionPercent(
+        uint256 _commissionPercent
+    ) external onlyOwner {
+        commissionPercent = _commissionPercent;
+    }
+
+    function setRoundDuration(uint256 _roundDuration) external onlyOwner {
+        roundDuration = _roundDuration;
+    }
+
+    function setRoundExtension(uint256 _roundExtension) external onlyOwner {
+        roundExtension = _roundExtension;
     }
 
     function emergencyWithdrawFunds() external onlyOwner whenPaused {
-        (bool success, ) = payable(owner()).call{value: address(this).balance}(
-            ""
-        );
-        if (!success) {
-            revert EmergencyWithdrawFailed();
+        for (uint i = lastRewardedRound; i < _gameIds.current(); i++) {
+            RoundStatus memory roundInfo = roundIdToGame[i];
+            uint256 commissionAmt = roundInfo.commission;
+            uint256 totalRewards = roundInfo.totalRewards;
+            uint256 netRewards = totalRewards - commissionAmt;
+            address rewardToken = roundInfo.rewardToken;
+            _payRewardsAndCommission(
+                netRewards,
+                commissionAmt,
+                owner(),
+                rewardToken
+            );
         }
     }
 }
