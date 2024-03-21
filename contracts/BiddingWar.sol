@@ -64,12 +64,14 @@ contract BiddingWar is
     /* ============ Modifier ============ */
 
     modifier isRoundActive() {
+        _updateState();
         if (!round.isActive || round.endTime <= block.timestamp) {
             revert GameInactive();
-            _;
         }
+        _;
     }
     modifier onlyGameInactive() {
+        _updateState();
         if (round.isActive) {
             revert RoundInProgress();
         }
@@ -82,15 +84,14 @@ contract BiddingWar is
         _;
     }
 
-    /* ============ Initialization ============ */
-
-    function __BiddingWar_init(
+    /* ============ Constructor ============ */
+    constructor(
         address _admin,
         uint256 _commissionPercent,
         uint256 _roundDuration,
         uint256 _roundExtension,
         address _rewardToken
-    ) public initializer {
+    ) initializer {
         __Ownable_init();
         __ReentrancyGuard_init();
         __Pausable_init();
@@ -154,6 +155,7 @@ contract BiddingWar is
 
     /* ============ External Write Functions ============ */
     function bid(uint256 _amount) external isRoundActive isBidTooLow(_amount) {
+        _updateState();
         address prevBidder = round.highestBidder;
         if (prevBidder == msg.sender) {
             revert AlreadyBid();
@@ -165,30 +167,9 @@ contract BiddingWar is
             (commissionPercent * amount) /
             DENOMINATOR;
         address rewardToken = round.rewardToken;
-        round = RoundStatus(
-            _gameIds.current(),
-            true,
-            amount,
-            block.timestamp,
-            endTime,
-            reward,
-            commission,
-            rewardToken,
-            prevBidder,
-            msg.sender
-        );
-    }
 
-    /* ============ Private Functions ============ */
-    function _startRound(address rewardToken) private {
-        _gameIds.increment();
-        address prevBidder = round.highestBidder;
-        round.roundId = _gameIds.current();
-        round.isActive = true;
-        uint256 amount = 0;
-        uint endTime = block.timestamp + roundDuration;
-        uint256 reward = round.totalRewards + amount;
-        uint commission = (commissionPercent * amount) / DENOMINATOR;
+        IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
+
         round = RoundStatus(
             _gameIds.current(),
             true,
@@ -204,7 +185,34 @@ contract BiddingWar is
         roundIdToGame[_gameIds.current()] = round;
     }
 
+    /* ============ Private Functions ============ */
+    function _startRound(address rewardToken) private {
+        _gameIds.increment();
+        round.roundId = _gameIds.current();
+        round.isActive = true;
+        round.totalRewards = 0;
+        uint256 amount = 0;
+        uint endTime = block.timestamp + roundDuration;
+        uint256 reward = round.totalRewards + amount;
+        uint commission = (commissionPercent * amount) / DENOMINATOR;
+        round = RoundStatus(
+            _gameIds.current(),
+            true,
+            amount,
+            block.timestamp,
+            endTime,
+            reward,
+            commission,
+            rewardToken,
+            address(0),
+            address(0)
+        );
+        roundIdToGame[_gameIds.current()] = round;
+    }
+
     function _resetGame() private {
+        round.isActive = false;
+        roundIdToGame[_gameIds.current()] = round;
         delete round;
     }
 
@@ -216,6 +224,12 @@ contract BiddingWar is
     ) private {
         IERC20(rewardToken).safeTransfer(_highestBidder, _netRewards);
         IERC20(rewardToken).safeTransfer(admin, _commissionAmt);
+    }
+
+    function _updateState() private {
+        if (round.isActive && round.endTime <= block.timestamp) {
+            _resetGame();
+        }
     }
 
     /* ============ Admin Functions ============ */
@@ -241,7 +255,7 @@ contract BiddingWar is
     }
 
     function distributeRewards() external onlyOwner onlyGameInactive {
-        for (uint i = lastRewardedRound; i < _gameIds.current(); i++) {
+        for (uint i = lastRewardedRound + 1; i <= _gameIds.current(); i++) {
             RoundStatus memory roundInfo = roundIdToGame[i];
             address highestBidder = roundInfo.highestBidder;
             uint256 commissionAmt = roundInfo.commission;
@@ -255,7 +269,7 @@ contract BiddingWar is
                 rewardToken
             );
         }
-        lastRewardedRound = _gameIds.current();
+        lastRewardedRound = _gameIds.current() + 1;
         emit RewardsDistributed(lastRewardedRound);
     }
 
