@@ -28,6 +28,7 @@ const config: HardhatUserConfig = {
       url: "https://nodeapi.test.energi.network/v1/jsonrpc" || "",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      chainId: 49797,
     },
     devnet: {
       url: "https://rpc.vnet.tenderly.co/devnet/arb/58966753-78eb-4d17-8134-fc689efe4d40",
