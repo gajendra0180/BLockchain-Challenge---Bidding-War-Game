@@ -100,11 +100,11 @@ contract BiddingWar is
         roundDuration = _roundDuration;
         roundExtension = _roundExtension;
         round = RoundStatus(
-            0,
+            _gameIds.current(),
             false,
+            0,
             block.timestamp,
-            0,
-            0,
+            block.timestamp,
             0,
             0,
             address(_rewardToken),

@@ -1,16 +1,5 @@
-const { Web3 } = require("web3");
-const contractABI = require("../ABI/ABI_BiddingWar.json");
-const { BIDDING_WAR_CONTRACT_ADDRESS } = require("../utils/PRODADDRESS");
-const web3Provider = "https://nodeapi.test.energi.network/v1/jsonrpc"; // Energi Testnet JSON RPC endpoint
-const webSocket = "wss://nodeapi.test.energi.network/ws";
+const { contract } = require("../utils/contract");
 
-// Create a new Web3 instance using the provided provider
-const web3 = new Web3(web3Provider);
-
-const contract = new web3.eth.Contract(
-  contractABI,
-  BIDDING_WAR_CONTRACT_ADDRESS
-);
 async function getCurrentRoundDetails() {
   try {
     const gameStatus = await contract.methods.getCurrentRoundDetails().call();
@@ -20,6 +9,52 @@ async function getCurrentRoundDetails() {
   }
 }
 
+async function distributeRewards(_from) {
+  try {
+    await contract.methods.distributeRewards().send({ from: _from });
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function startGame(_rewardToken, _from) {
+  try {
+    await contract.methods.startGame(_rewardToken).send({ from: _from });
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function startNextRound(_rewardToken, _from) {
+  try {
+    await contract.methods.nextRound(_rewardToken).send({ from: _from });
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function makeBid(_amount, _from) {
+  try {
+    await contract.methods.bid(_amount).send({ from: _from });
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getRoundEndtime() {
+  try {
+    const roundEndtime = await contract.methods.getCurrentRoundEndTime().call();
+    return roundEndtime;
+  } catch (error) {
+    throw error;
+  }
+}
+
 module.exports = {
   getCurrentRoundDetails,
+  distributeRewards,
+  startGame,
+  startNextRound,
+  makeBid,
+  getRoundEndtime,
 };
