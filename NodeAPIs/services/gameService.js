@@ -10,7 +10,7 @@ async function getCurrentRoundDetails() {
   }
 }
 
-async function distributeRewards(_from) {
+async function distributeRewards(_from, _fromPrivateKey) {
   try {
     let distributeRewardsTransactionObj = {
       from: _from,

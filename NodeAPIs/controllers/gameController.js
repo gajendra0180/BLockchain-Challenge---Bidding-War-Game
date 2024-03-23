@@ -15,7 +15,7 @@ async function getCurrentRoundDetails(req, res) {
 
 async function distributeRewards(req, res) {
   try {
-    await gameService.distributeRewards(req.address);
+    await gameService.distributeRewards(req.address, req.private_key);
     res.json({ message: "Rewards distributed" });
   } catch (error) {
     logger.error("Error distributing rewards:", error);
