@@ -1,4 +1,5 @@
-const { contract } = require("../utils/contract");
+const { contract, web3js, contractAddress } = require("../utils/contract");
+const { sendTransaction } = require("../utils/helper");
 
 async function getCurrentRoundDetails() {
   try {
@@ -17,15 +18,22 @@ async function distributeRewards(_from) {
   }
 }
 
-async function startGame(_rewardToken, _from) {
+async function startGame(_rewardToken, _from, _fromPrivateKey) {
   try {
-    await contract.methods.startGame(_rewardToken).send({ from: _from });
+    let startGameTransactionObj = {
+      from: _from,
+      gasPrice: web3js.utils.toHex(20 * 1e9),
+      gasLimit: web3js.utils.toHex(2100000),
+      to: contractAddress,
+      data: contract.methods.startGame(_rewardToken).encodeABI(),
+    };
+    await sendTransaction(startGameTransactionObj, _fromPrivateKey);
   } catch (error) {
     throw error;
   }
 }
 
-async function startNextRound(_rewardToken, _from) {
+async function startNextRound(_rewardToken, _from, _fromPrivateKey) {
   try {
     await contract.methods.nextRound(_rewardToken).send({ from: _from });
   } catch (error) {
@@ -33,9 +41,32 @@ async function startNextRound(_rewardToken, _from) {
   }
 }
 
-async function makeBid(_amount, _from) {
+async function makeBid(_amount, _from, _fromPrivateKey) {
   try {
-    await contract.methods.bid(_amount).send({ from: _from });
+    let makeBidTransactionObj = {
+      from: _from,
+      gasPrice: web3js.utils.toHex(20 * 1e9),
+      gasLimit: web3js.utils.toHex(2100000),
+      to: contractAddress,
+      data: contract.methods.bid(_amount).encodeABI(),
+    };
+    await sendTransaction(makeBidTransactionObj, _fromPrivateKey);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function makeNativeBid(_amount, _from, _fromPrivateKey) {
+  try {
+    let makeBidTransactionObj = {
+      from: _from,
+      gasPrice: web3js.utils.toHex(20 * 1e9),
+      gasLimit: web3js.utils.toHex(2100000),
+      to: contractAddress,
+      value: "0xb1a2bc2ec50000", // 0.1 NRG, use the _amount here
+      data: contract.methods.bidNative().encodeABI(),
+    };
+    await sendTransaction(makeBidTransactionObj, _fromPrivateKey);
   } catch (error) {
     throw error;
   }
@@ -56,5 +87,6 @@ module.exports = {
   startGame,
   startNextRound,
   makeBid,
+  makeNativeBid,
   getRoundEndtime,
 };

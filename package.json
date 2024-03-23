@@ -4,6 +4,7 @@
   "description": "Welcome the Energi Blockchain Challenge.",
   "main": "index.js",
   "scripts": {
+    "start": "nodemon NodeAPIs/app.js",
     "build": "yarn clean && yarn compile && yarn build:ts:latest",
     "build:ts:latest": "yarn typechain && yarn transpile:dist:latest",
     "chain": "npx hardhat node",

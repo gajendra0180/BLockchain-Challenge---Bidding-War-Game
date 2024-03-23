@@ -35,7 +35,8 @@ describe("BiddingWar", function () {
       500,
       3600,
       600,
-      ADDRESS_ZERO
+      ADDRESS_ZERO,
+      0
     );
     blockchain = new Blockchain(ethers.provider);
   });

@@ -24,6 +24,16 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
+    hardhat: {
+      chains: {
+        49797: {
+          hardforkHistory: {
+            berlin: 2156658,
+            london: 2156658,
+          },
+        }
+      }
+    },
     energi: {
       url: "https://nodeapi.test.energi.network/v1/jsonrpc" || "",
       accounts:

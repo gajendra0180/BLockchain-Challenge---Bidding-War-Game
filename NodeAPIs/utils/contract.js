@@ -10,5 +10,10 @@ const wssWeb3 = new Web3(wssWeb3Provider);
 
 module.exports = {
   contract: new web3.eth.Contract(contractABI, BIDDING_WAR_CONTRACT_ADDRESS),
-  contract_wss: new wssWeb3.eth.Contract(contractABI, BIDDING_WAR_CONTRACT_ADDRESS),
+  contract_wss: new wssWeb3.eth.Contract(
+    contractABI,
+    BIDDING_WAR_CONTRACT_ADDRESS
+  ),
+  web3js: web3,
+  contractAddress: BIDDING_WAR_CONTRACT_ADDRESS,
 };

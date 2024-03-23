@@ -44,6 +44,7 @@ contract BiddingWar is
         address rewardToken;
         address previousBidder;
         address highestBidder;
+        bool isNativeRewards;
     }
     RoundStatus public round;
 
@@ -90,7 +91,8 @@ contract BiddingWar is
         uint256 _commissionPercent,
         uint256 _roundDuration,
         uint256 _roundExtension,
-        address _rewardToken
+        address _rewardToken,
+        bool _isNativeRewards
     ) initializer {
         __Ownable_init();
         __ReentrancyGuard_init();
@@ -109,7 +111,8 @@ contract BiddingWar is
             0,
             address(_rewardToken),
             address(0),
-            address(0)
+            address(0),
+            _isNativeRewards
         );
     }
 
@@ -156,8 +159,23 @@ contract BiddingWar is
     /* ============ External Write Functions ============ */
     function bid(uint256 _amount) external isRoundActive isBidTooLow(_amount) {
         _updateState();
+        _handleBid(false, _amount, msg.sender);
+    }
+
+    function bidNative() external payable isRoundActive isBidTooLow(msg.value) {
+        _updateState();
+        _handleBid(true, msg.value, msg.sender);
+    }
+
+    /* ============ Private Functions ============ */
+
+    function _handleBid(
+        bool _isNative,
+        uint256 _amount,
+        address _sender
+    ) private {
         address prevBidder = round.highestBidder;
-        if (prevBidder == msg.sender) {
+        if (prevBidder == _sender) {
             revert AlreadyBid();
         }
         uint256 amount = _amount;
@@ -166,9 +184,14 @@ contract BiddingWar is
         uint commission = round.commission +
             (commissionPercent * amount) /
             DENOMINATOR;
-        address rewardToken = round.rewardToken;
+        address rewardToken = !_isNative ? round.rewardToken : address(0);
 
-        IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
+        if (!_isNative)
+            IERC20(rewardToken).safeTransferFrom(
+                _sender,
+                address(this),
+                amount
+            );
 
         round = RoundStatus(
             _gameIds.current(),
@@ -180,12 +203,12 @@ contract BiddingWar is
             commission,
             rewardToken,
             prevBidder,
-            msg.sender
+            _sender,
+            _isNative
         );
         roundIdToGame[_gameIds.current()] = round;
     }
 
-    /* ============ Private Functions ============ */
     function _startRound(address rewardToken) private {
         _gameIds.increment();
         round.roundId = _gameIds.current();
@@ -195,6 +218,7 @@ contract BiddingWar is
         uint endTime = block.timestamp + roundDuration;
         uint256 reward = round.totalRewards + amount;
         uint commission = (commissionPercent * amount) / DENOMINATOR;
+        bool is_native = rewardToken == address(0);
         round = RoundStatus(
             _gameIds.current(),
             true,
@@ -205,7 +229,8 @@ contract BiddingWar is
             commission,
             rewardToken,
             address(0),
-            address(0)
+            address(0),
+            is_native
         );
         roundIdToGame[_gameIds.current()] = round;
     }
@@ -220,10 +245,22 @@ contract BiddingWar is
         uint256 _netRewards,
         uint256 _commissionAmt,
         address _highestBidder,
-        address rewardToken
+        address _rewardToken,
+        bool _isNative
     ) private {
-        IERC20(rewardToken).safeTransfer(_highestBidder, _netRewards);
-        IERC20(rewardToken).safeTransfer(admin, _commissionAmt);
+        if (_isNative) {
+            (bool success, ) = payable(_highestBidder).call{value: _netRewards}(
+                ""
+            );
+            require(success, "Payment failed.");
+            (bool success_admin, ) = payable(admin).call{value: _commissionAmt}(
+                ""
+            );
+            require(success_admin, "Payment failed.");
+        } else {
+            IERC20(_rewardToken).safeTransfer(_highestBidder, _netRewards);
+            IERC20(_rewardToken).safeTransfer(admin, _commissionAmt);
+        }
     }
 
     function _updateState() private {
@@ -262,11 +299,13 @@ contract BiddingWar is
             uint256 totalRewards = roundInfo.totalRewards;
             uint256 netRewards = totalRewards - commissionAmt;
             address rewardToken = roundInfo.rewardToken;
+            bool isNative = roundInfo.isNativeRewards;
             _payRewardsAndCommission(
                 netRewards,
                 commissionAmt,
                 highestBidder,
-                rewardToken
+                rewardToken,
+                isNative
             );
         }
         lastRewardedRound = _gameIds.current() + 1;
@@ -298,11 +337,13 @@ contract BiddingWar is
             uint256 totalRewards = roundInfo.totalRewards;
             uint256 netRewards = totalRewards - commissionAmt;
             address rewardToken = roundInfo.rewardToken;
+            bool isNative = roundInfo.isNativeRewards;
             _payRewardsAndCommission(
                 netRewards,
                 commissionAmt,
                 owner(),
-                rewardToken
+                rewardToken,
+                isNative
             );
         }
     }

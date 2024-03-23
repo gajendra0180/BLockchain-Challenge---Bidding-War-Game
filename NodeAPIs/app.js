@@ -3,6 +3,8 @@ const apiRouter = require('./routes/router');
 const eventHandler = require("./events/eventHandler");
 const logger = require('./utils/logger');
 const app = express();
+const dotenv = require('dotenv');
+dotenv.config();
 
 app.use(express.json());
 

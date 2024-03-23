@@ -25,6 +25,11 @@
         "internalType": "address",
         "name": "_rewardToken",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "_isNativeRewards",
+        "type": "bool"
       }
     ],
     "stateMutability": "nonpayable",
@@ -174,6 +179,13 @@
   },
   {
     "inputs": [],
+    "name": "bidNative",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "distributeRewards",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -273,6 +285,11 @@
             "internalType": "address",
             "name": "highestBidder",
             "type": "address"
+          },
+          {
+            "internalType": "bool",
+            "name": "isNativeRewards",
+            "type": "bool"
           }
         ],
         "internalType": "struct BiddingWar.RoundStatus",
@@ -370,6 +387,11 @@
             "internalType": "address",
             "name": "highestBidder",
             "type": "address"
+          },
+          {
+            "internalType": "bool",
+            "name": "isNativeRewards",
+            "type": "bool"
           }
         ],
         "internalType": "struct BiddingWar.RoundStatus",
@@ -505,6 +527,11 @@
         "internalType": "address",
         "name": "highestBidder",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "isNativeRewards",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -569,6 +596,11 @@
         "internalType": "address",
         "name": "highestBidder",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "isNativeRewards",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
