@@ -28,7 +28,7 @@ Use the [Testnet Faucet](https://faucet.energi.network/) to get some test NRG.
 
 
 
-Solution: 
+### Solution By Gajendra Pal(error0180): 
 
 ## Refer to this doc for detailed game mechanics:
 [Game Mechanics Doc](https://docs.google.com/document/d/1SaXMYNabUkwojN32nffYyaxlTfbYy3oUS3ggJnmW_VY/edit?usp=sharing)
