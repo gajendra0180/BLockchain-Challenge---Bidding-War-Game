@@ -12,7 +12,14 @@ async function getCurrentRoundDetails() {
 
 async function distributeRewards(_from) {
   try {
-    await contract.methods.distributeRewards().send({ from: _from });
+    let distributeRewardsTransactionObj = {
+      from: _from,
+      gasPrice: web3js.utils.toHex(20 * 1e9),
+      gasLimit: web3js.utils.toHex(2100000),
+      to: contractAddress,
+      data: contract.methods.distributeRewards().encodeABI(),
+    };
+    await sendTransaction(distributeRewardsTransactionObj, _fromPrivateKey);
   } catch (error) {
     throw error;
   }
@@ -35,7 +42,14 @@ async function startGame(_rewardToken, _from, _fromPrivateKey) {
 
 async function startNextRound(_rewardToken, _from, _fromPrivateKey) {
   try {
-    await contract.methods.nextRound(_rewardToken).send({ from: _from });
+    let startNextRoundTransactionObj = {
+      from: _from,
+      gasPrice: web3js.utils.toHex(20 * 1e9),
+      gasLimit: web3js.utils.toHex(2100000),
+      to: contractAddress,
+      data: contract.methods.nextRound(_rewardToken).encodeABI(),
+    };
+    await sendTransaction(startNextRoundTransactionObj, _fromPrivateKey);
   } catch (error) {
     throw error;
   }
